@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanPess — Dashboard de Finanças Pessoais</title>
+  <meta name="description" content="Dashboard para visualização e gestão de finanças pessoais a partir do Google Sheets">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ═══ LOGIN SCREEN ═══ -->
+  <div id="login-screen">
+    <div class="login-card">
+      <span class="login-icon">💰</span>
+      <h1>FinanPess</h1>
+      <p class="login-subtitle">Dashboard de Finanças Pessoais</p>
+      <p class="login-description">Acesso restrito. Faça login com sua conta Google autorizada.</p>
+      <div id="google-btn-container"></div>
+      <div id="login-error" class="login-error"></div>
+      <p class="login-footer">🔒 Apenas usuários com acesso à planilha podem entrar.</p>
+    </div>
+  </div>
+
+  <!-- ═══ APP CONTAINER ═══ -->
+  <div class="app-container" style="display: none;">
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1 class="app-title">💰 FinanPess</h1>
+      </div>
+      <div class="header-right">
+        <button id="btn-gerar-mensais" class="btn btn-accent" title="Gerar movimentações do mês a partir do modelo">⚡ Gerar Mensais</button>
+        <div id="user-info" class="user-info">
+          <img class="user-avatar" src="" alt="Avatar" referrerpolicy="no-referrer">
+          <span class="user-email"></span>
+        </div>
+        <button id="logout-btn" class="btn btn-ghost" title="Sair">Sair</button>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+      <button class="tab-btn" data-tab="movimentacoes">📋 Movimentações</button>
+    </nav>
+
+    <!-- Content -->
+    <main class="main-content">
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+      </div>
+
+      <!-- Dashboard Tab -->
+      <div id="tab-dashboard" class="tab-content active">
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="filter-mes">Mês:</label>
+            <select id="filter-mes" class="filter-select"></select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-ano">Ano:</label>
+            <select id="filter-ano" class="filter-select"></select>
+          </div>
+        </div>
+
+        <section class="caixa-section" id="section-regular">
+          <h2 class="section-title"><span class="section-icon">🏦</span> Caixa Regular</h2>
+          <div class="cards-grid" id="cards-regular"></div>
+          <div class="charts-grid">
+            <div class="chart-container"><h3 class="chart-title">Movimentações por Categoria</h3><canvas id="chart-bar-regular"></canvas></div>
+            <div class="chart-container"><h3 class="chart-title">Pago vs Estimado</h3><canvas id="chart-doughnut-regular"></canvas></div>
+          </div>
+        </section>
+
+        <section class="caixa-section" id="section-paralelo">
+          <h2 class="section-title"><span class="section-icon">💼</span> Caixa Paralelo</h2>
+          <div class="cards-grid" id="cards-paralelo"></div>
+          <div class="charts-grid">
+            <div class="chart-container"><h3 class="chart-title">Movimentações por Categoria</h3><canvas id="chart-bar-paralelo"></canvas></div>
+            <div class="chart-container"><h3 class="chart-title">Pago vs Estimado</h3><canvas id="chart-doughnut-paralelo"></canvas></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Movimentações Tab -->
+      <div id="tab-movimentacoes" class="tab-content">
+        <div class="movimentacoes-header">
+          <div class="movimentacoes-filters">
+            <input type="text" id="search-movimentacao" class="search-input" placeholder="🔍 Buscar movimentação...">
+            <select id="filter-tipo" class="filter-select">
+              <option value="">Todos os tipos</option>
+              <option value="REGULAR">Regular</option>
+              <option value="PARALELO">Paralelo</option>
+            </select>
+            <select id="filter-status" class="filter-select">
+              <option value="">Todos os status</option>
+              <option value="pago">Pago/Recebido</option>
+              <option value="estimado">Estimado</option>
+            </select>
+          </div>
+          <button id="btn-add-movimentacao" class="btn btn-primary">+ Nova Movimentação</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table" id="table-movimentacoes">
+            <thead>
+              <tr>
+                <th>Movimentação</th><th>Mês</th><th>Ano</th><th>Valor</th>
+                <th>Data</th><th>Parcela</th><th>Tipo</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="table-empty" class="empty-state" style="display:none;">
+          <span class="empty-icon">📭</span>
+          <p>Nenhuma movimentação encontrada.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══ MODAL: Add/Edit Form ═══ -->
+  <div id="modal-form" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Nova Movimentação</h2>
+        <button id="modal-close" class="modal-close">&times;</button>
+      </div>
+      <form id="form-movimentacao" class="form">
+        <input type="hidden" id="form-row-index" value="">
+        <div class="form-group">
+          <label for="form-movimentacao-nome">Movimentação *</label>
+          <input type="text" id="form-movimentacao-nome" list="sugestoes-movimentacao" required placeholder="Ex: ALUGUEL, SALÁRIO...">
+          <datalist id="sugestoes-movimentacao"></datalist>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="form-mes">Mês *</label>
+            <select id="form-mes" required>
+              <option value="">Selecione...</option>
+              <option value="JANEIRO">Janeiro</option><option value="FEVEREIRO">Fevereiro</option>
+              <option value="MARÇO">Março</option><option value="ABRIL">Abril</option>
+              <option value="MAIO">Maio</option><option value="JUNHO">Junho</option>
+              <option value="JULHO">Julho</option><option value="AGOSTO">Agosto</option>
+              <option value="SETEMBRO">Setembro</option><option value="OUTUBRO">Outubro</option>
+              <option value="NOVEMBRO">Novembro</option><option value="DEZEMBRO">Dezembro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-ano">Ano *</label>
+            <input type="number" id="form-ano" required min="2020" max="2040">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo de Valor *</label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn active" id="toggle-despesa">Despesa</button>
+              <button type="button" class="toggle-btn" id="toggle-receita">Receita</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="form-valor">Valor (R$) *</label>
+            <input type="number" id="form-valor" required min="0" step="0.01" placeholder="0,00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="form-data">Data (vazio = estimado)</label>
+            <input type="date" id="form-data">
+          </div>
+          <div class="form-group">
+            <label for="form-parcela">Parcela</label>
+            <input type="text" id="form-parcela" placeholder="Ex: 5/24">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Tipo de Caixa *</label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn active" id="toggle-regular">Regular</button>
+            <button type="button" class="toggle-btn" id="toggle-paralelo">Paralelo</button>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="btn-cancel-form" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-form">Adicionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Confirm Delete ═══ -->
+  <div id="modal-confirm" class="modal-overlay" style="display:none;">
+    <div class="modal-content modal-confirm-content">
+      <div class="modal-header">
+        <h2>Confirmar Exclusão</h2>
+        <button class="modal-close" id="confirm-close">&times;</button>
+      </div>
+      <p id="confirm-message">Tem certeza que deseja excluir esta movimentação?</p>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="confirm-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="confirm-ok">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/movimentacoes.js"></script>
+  <script src="js/formulario.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
