@@ -2,7 +2,7 @@
  * api.js — Autenticação Google + Comunicação com Backend
  */
 
-const API_URL = 'COLE_AQUI_A_URL_DO_DEPLOY_DO_APPS_SCRIPT';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz1pad33nfMNKFSR2XbLXIzJBHw7u-ag8ynDDZfkXDEySDY9DU5yN_h9Z9O/exec';
 const GOOGLE_CLIENT_ID = '198043502728-ge0gbnol6muoir619bu1bg3vpnu8ns9a.apps.googleusercontent.com';
 
 let _idToken = null;
